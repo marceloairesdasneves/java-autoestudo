@@ -23,6 +23,15 @@ Decidimos adotar **Structured Concurrency** (`java.util.concurrent.StructuredTas
 2. **Padrão Fail-Fast com `ShutdownOnFailure`:** Para pipelines em que todos os resultados parciais são estritamente necessários para consolidar a transação (ex: conformidade fiscal e análise cadastral), o escopo padrão será `StructuredTaskScope.ShutdownOnFailure`. A falha de qualquer subtarefa aciona o envio imediato de sinais de interrupção cooperativa (`Thread.interrupt()`) para todas as subtarefas irmãs ainda em voo.
 3. **Ponto de Encontro Estrito:** A chamada a `scope.join()` seguida de `scope.throwIfFailed()` é mandatória antes de qualquer tentativa de leitura de valores via `Subtask.get()`, garantindo que exceções sejam propagadas de forma linear e transparente na pilha de chamada do invocador original.
 
+### 2.1 Propagação Segura de Contexto via ScopedValue
+Fica terminantemente vetado o uso de `ThreadLocal` ou `InheritableThreadLocal` para tráfego de dados de contexto transacional (ex: Tenant ID, identificadores fiscais e credenciais autenticadas). O compartilhamento desses dados com subtarefas criadas pelo `StructuredTaskScope` será feito exclusivamente via instâncias de `ScopedValue`, garantindo imutabilidade estrita e desalocação automática de escopo pela JVM.
+
+---
+
+### Adendo de Consequências (Scoped Values)
+* **Zero Overhead de Cópia em Concorrência Massiva:** Eliminação do gargalo de duplicação de mapas de memória entre threads pais e filhas, viabilizando o tráfego de contexto para milhares de Virtual Threads simultâneas.
+* **Prevenção Nativa de Vazamento de Memória (No Leaks):** Impossibilidade física de contaminação de sessões ou retenção indevida de dados no Heap após o término da requisição.
+
 ---
 
 ## 3. Consequências
